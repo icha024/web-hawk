@@ -16,15 +16,10 @@ func main() {
 		URL   string
 		Time  float64
 	}
-	portPtr := flag.String("port", "8080", "Port to host location service on.")
-	urlsPtr := flag.String("urls", "http://localhost:8080/up,http://www.clianz.com/", "Comma seperated URLs list to monitor")
+	portPtr := addConf("PORT", "8080", "Port to host location service on.")
+	urlsPtr := addConf("URLS", "http://localhost:8080/up,http://www.clianz.com/", "Comma seperated URLs list to monitor")
+	corsPtr := addConf("CORS", "*", "CORS URL to configure.")
 	flag.Parse()
-	if os.Getenv("PORT") != "" {
-		*portPtr = os.Getenv("PORT")
-	}
-	if os.Getenv("URLS") != "" {
-		*urlsPtr = os.Getenv("URLS")
-	}
 
 	log.Printf("Monitoring URLs: %v", *urlsPtr)
 	urls := strings.Split(*urlsPtr, ",")
@@ -34,25 +29,24 @@ func main() {
 	}
 
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", *corsPtr)
 		queue := make(chan serviceStats, len(urls))
 		for _, eachURL := range urls {
 			go func(v string) {
 				startTime := time.Now()
-				log.Printf("Parsing URL: %v", v)
 				resp, err := client.Head(v)
 				if err != nil || resp.StatusCode != 200 {
-					log.Printf("Service Error")
+					log.Printf("Error: %v", v)
 					queue <- serviceStats{Alive: false, URL: v, Time: 0}
 				} else {
 					endTime := time.Since(startTime).Seconds() * 1000
-					log.Printf("Success. Duration: %f", endTime)
+					log.Printf("Success (%.2f ms): %v", endTime, v)
 					queue <- serviceStats{Alive: true, URL: v, Time: endTime}
 				}
 			}(eachURL)
 		}
 
 		fmt.Fprintf(w, "{")
-		// for elem := range queue {
 		for i := 0; i < len(urls); i++ {
 			select {
 			case elem := <-queue:
@@ -70,4 +64,12 @@ func main() {
 		log.Fatalf("Error: %s", err.Error())
 	}
 	log.Printf("Server running on port %v", *portPtr)
+}
+
+func addConf(name, defaultVal, desc string) *string {
+	optPtr := flag.String(name, defaultVal, desc)
+	if os.Getenv(name) != "" {
+		*optPtr = os.Getenv(name)
+	}
+	return optPtr
 }
