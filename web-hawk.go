@@ -14,12 +14,14 @@ import (
 )
 
 type serviceStats struct {
+	Name  string
 	Alive bool
 	URL   string
 	Time  float64
 }
 
 var cors *string
+var urlCleaner []string
 var server *Server
 
 func main() {
@@ -31,10 +33,12 @@ func main() {
 	dbUsernamePtr := addConf("DB_USERNAME", "web-hawk", "Username of RethinkDB user")
 	dbPasswordPtr := addConf("DB_PASSWORD", "hawkpassw0rd", "Password of RethinkDB user")
 	pollTimePtr := addConf("POLL_TIME", "10", "Time (in seconds) between service status polls. '0' will disable server from polling.")
+	urlCleanerPtr := addConf("URL_CLEANERS", "http://, https://, www.", "Part of URL to strip for converting to friendly name.")
 	flag.Parse()
 
 	cors = corsPtr
 	log.Printf("Setting CORS: %v", *cors)
+	urlCleaner = strings.Split(strings.Replace(*urlCleanerPtr, " ", "", -1), ",")
 
 	session, err := r.Connect(r.ConnectOpts{
 		Address:  *dbAddressPtr,
@@ -173,11 +177,11 @@ func fetchServerStatus(client http.Client, urls []string) string {
 			resp, err := client.Head(v)
 			if err != nil || resp.StatusCode != 200 {
 				log.Printf("Error: %v", v)
-				queue <- serviceStats{Alive: false, URL: v, Time: 0}
+				queue <- serviceStats{Name: getNameFromURL(v), Alive: false, URL: v, Time: 0}
 			} else {
 				endTime := time.Since(startTime).Seconds() * 1000
 				log.Printf("Success (%.2f ms): %v", endTime, v)
-				queue <- serviceStats{Alive: true, URL: v, Time: endTime}
+				queue <- serviceStats{Name: getNameFromURL(v), Alive: true, URL: v, Time: endTime}
 			}
 		}(eachURL)
 	}
@@ -189,12 +193,20 @@ func fetchServerStatus(client http.Client, urls []string) string {
 			if i != 0 {
 				statusResp += ","
 			}
-			statusResp += fmt.Sprintf("{\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}", elem.Alive, elem.Time, elem.URL)
+			statusResp += fmt.Sprintf("{\"name\":\"%v\",\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}",
+				elem.Name, elem.Alive, elem.Time, elem.URL)
 		}
 	}
 	close(queue)
 	statusResp += "]}"
 	return statusResp
+}
+
+func getNameFromURL(url string) string {
+	for _, v := range urlCleaner {
+		url = strings.Replace(url, v, "", -1)
+	}
+	return url
 }
 
 func addConf(name, defaultVal, desc string) *string {

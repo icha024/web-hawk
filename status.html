@@ -51,8 +51,9 @@
                                 <div class="list-group-item" ng-repeat="eachData in services">
                                         <span>
                                             <h4 class="list-group-item-heading" >
-                                            {{ eachData.url }}
+                                                {{ eachData.name }}
                                             </h4>
+                                            {{ eachData.url }}
                                         </span>
                                         
                                         <span class="list-group-item-text" ng-if="!eachData.alive">
