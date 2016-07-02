@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/googollee/go-socket.io"
 	r "gopkg.in/dancannon/gorethink.v2"
 	"log"
 	"net/http"
@@ -17,11 +18,15 @@ type serviceStats struct {
 	Time  float64
 }
 
+var cors *string
+
 func main() {
 	portPtr := addConf("PORT", "8080", "Port to host location service on.")
 	urlsPtr := addConf("URLS", "http://localhost:7070/up,http://www.clianz.com/", "Comma seperated URLs list to monitor")
 	corsPtr := addConf("CORS", "*", "CORS URL to configure.")
 	flag.Parse()
+	cors = corsPtr
+	log.Printf("Setting CORS: %v", *cors)
 
 	session, err := r.Connect(r.ConnectOpts{
 		Address:  "localhost:28015",
@@ -45,8 +50,31 @@ func main() {
 	latestStatus := fetchServerStatusFromDb(session)
 	log.Printf("Latest status: %v", latestStatus)
 
+	// Socker server
+	server, err := NewSocketServer(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	server.On("connection", func(so socketio.Socket) {
+		log.Println("on connection")
+		so.Join("update")
+		// so.On("chat message", func(msg string) {
+		// 	log.Println("emit:", so.Emit("chat message", msg))
+		// 	so.BroadcastTo("chat", "chat message", msg)
+		// })
+		so.BroadcastTo("update", latestStatus)
+		so.On("disconnection", func() {
+			log.Println("on disconnect")
+		})
+	})
+	server.On("error", func(so socketio.Socket, err error) {
+		log.Println("error:", err)
+	})
+	http.Handle("/socket.io/", server)
+
+	// Web handler
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", *corsPtr)
+		w.Header().Set("Access-Control-Allow-Origin", *cors)
 		statusResp := fetchServerStatus(client, urls)
 		fmt.Fprintf(w, statusResp)
 	})
@@ -55,6 +83,26 @@ func main() {
 		log.Fatalf("Error: %s", err.Error())
 	}
 	log.Printf("Server running on port %v", *portPtr)
+}
+
+// Server container for socker server
+type Server struct {
+	socketio.Server
+}
+
+// NewSocketServer to add CORS, see: https://github.com/googollee/go-socket.io/issues/122
+func NewSocketServer(transportNames []string) (*Server, error) {
+	ret, err := socketio.NewServer(transportNames)
+	if err != nil {
+		return nil, err
+	}
+	return &Server{*ret}, nil
+}
+
+func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Access-Control-Allow-Origin", *cors)
+	w.Header().Add("Access-Control-Allow-Credentials", "true")
+	s.Server.ServeHTTP(w, r)
 }
 
 func pushServerStatusToDb(session *r.Session, status string) {

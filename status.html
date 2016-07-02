@@ -4,6 +4,7 @@
 <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.4/angular.min.js"></script>
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.4/angular-resource.js"></script>
+<script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
 <style>
 .body-bg {
     background-color: #f2f2f2;
@@ -83,14 +84,19 @@ app.controller("myCtrl", function(myService, $scope, $http) {
     $scope.services = []
     $scope.good = true	
     myService.get(function(res) {
-            $scope.services = res.services
-            res.services.forEach(function(eachSvc){
-                $scope.good = $scope.good & eachSvc.alive
-            })
-            // console.debug("RES: "  + JSON.stringify($scope.services))
-        }, function(error) {
-            // Error handler code
-        });  
+        $scope.services = res.services
+        res.services.forEach(function(eachSvc){
+            $scope.good = $scope.good & eachSvc.alive
+        })
+        // console.debug("RES: "  + JSON.stringify($scope.services))
+    }, function(error) {
+        // Error handler code
+    });
+    var socket = io('http://localhost:3001/socket.io');
+    socket.on('update', function (data) {
+        console.log(data);
+        // socket.emit('my other event', { my: 'data' });
+    });
 })
 </script>
 </body>
