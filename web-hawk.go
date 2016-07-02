@@ -22,7 +22,6 @@ type serviceStats struct {
 
 var cors *string
 var urlCleaner []string
-var server *Server
 
 func main() {
 	portPtr := addConf("PORT", "8080", "Port to host location service on.")
@@ -40,7 +39,7 @@ func main() {
 	log.Printf("Setting CORS: %v", *cors)
 	urlCleaner = strings.Split(strings.Replace(*urlCleanerPtr, " ", "", -1), ",")
 
-	session, err := r.Connect(r.ConnectOpts{
+	dbSession, err := r.Connect(r.ConnectOpts{
 		Address:  *dbAddressPtr,
 		Database: *dbNamePtr,
 		Username: *dbUsernamePtr,
@@ -58,24 +57,24 @@ func main() {
 	}
 
 	// Socker server
-	server, err = NewSocketServer(nil)
+	socketServer, err := NewSocketServer(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.On("connection", func(so socketio.Socket) {
+	socketServer.On("connection", func(so socketio.Socket) {
 		// log.Println("on connection")
 		so.Join("updatesChannel")
 		// so.On("disconnection", func() {
 		// 	log.Println("on disconnect")
 		// })
 	})
-	server.On("error", func(so socketio.Socket, err error) {
+	socketServer.On("error", func(so socketio.Socket, err error) {
 		log.Println("error:", err)
 	})
-	http.Handle("/socket.io/", server)
+	http.Handle("/socket.io/", socketServer)
 
 	// Subscibe to DB and broadcast changes
-	broadcastDbChanges(session)
+	broadcastDbChanges(socketServer, dbSession)
 
 	// Poll server to monitor periodically
 	pollTime, err := strconv.ParseInt(*pollTimePtr, 10, 64)
@@ -83,7 +82,7 @@ func main() {
 		panic("Service poll time invalid. Must be 5 seconds or more in interger value.")
 	}
 	if pollTime != 0 {
-		monitorServiceStatus(session, client, urls, pollTime)
+		monitorServiceStatus(dbSession, client, urls, pollTime)
 	}
 
 	// Web handler
@@ -92,7 +91,7 @@ func main() {
 			w.Header().Set("Access-Control-Allow-Origin", *cors)
 			w.Header().Add("Access-Control-Allow-Credentials", "true")
 		}
-		statusResp := fetchServerStatusFromDb(session)
+		statusResp := fetchServerStatusFromDb(dbSession)
 		fmt.Fprintf(w, statusResp)
 	})
 	err = http.ListenAndServe(":"+*portPtr, nil)
@@ -124,9 +123,9 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.Server.ServeHTTP(w, r)
 }
 
-func broadcastDbChanges(session *r.Session) {
+func broadcastDbChanges(server *Server, dbSession *r.Session) {
 	// Listen to DB for changes
-	res, err := r.DB("test").Table("hawk").Changes().Run(session)
+	res, err := r.DB("test").Table("hawk").Changes().Run(dbSession)
 	if err != nil {
 		log.Fatalf("Error listening to DB changes: %s", err.Error())
 	}
@@ -137,7 +136,7 @@ func broadcastDbChanges(session *r.Session) {
 			log.Printf("DB CHANGE: %v", newStatus)
 			if newStatus != nil {
 				if statusStr, ok := newStatus.(string); ok {
-					broadcastStatus(statusStr)
+					broadcastStatus(server, statusStr)
 				}
 			}
 		}
@@ -155,7 +154,7 @@ func monitorServiceStatus(session *r.Session, client http.Client, urls []string,
 	}()
 }
 
-func broadcastStatus(statusResp string) {
+func broadcastStatus(server *Server, statusResp string) {
 	server.BroadcastTo("updatesChannel", "updateEvent", statusResp)
 }
 
