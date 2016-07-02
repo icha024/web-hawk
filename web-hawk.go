@@ -48,13 +48,13 @@ func main() {
 		log.Printf("Error writing to DB: %v", err)
 	}
 
-	var response interface{}
+	var response map[string]interface{}
 	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("timestamp")).Limit(1).Run(session)
 	if err != nil {
 		log.Printf("Error reading DB: %v", err)
 	}
 	resp.One(&response)
-	log.Printf("Latest status: %v", response)
+	log.Printf("Latest status: %v", response["status"])
 
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", *corsPtr)
