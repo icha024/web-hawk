@@ -40,21 +40,10 @@ func main() {
 		Timeout: timeout,
 	}
 
-	err = r.DB("test").Table("hawk").Insert(map[string]string{
-		"status":    fetchServerStatus(client, urls),
-		"timestamp": time.Now().Format(time.RFC3339),
-	}).Exec(session)
-	if err != nil {
-		log.Printf("Error writing to DB: %v", err)
-	}
+	pushServerStatusToDb(session, fetchServerStatus(client, urls))
 
-	var response map[string]interface{}
-	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("timestamp")).Limit(1).Run(session)
-	if err != nil {
-		log.Printf("Error reading DB: %v", err)
-	}
-	resp.One(&response)
-	log.Printf("Latest status: %v", response["status"])
+	latestStatus := fetchServerStatusFromDb(session)
+	log.Printf("Latest status: %v", latestStatus)
 
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", *corsPtr)
@@ -66,6 +55,26 @@ func main() {
 		log.Fatalf("Error: %s", err.Error())
 	}
 	log.Printf("Server running on port %v", *portPtr)
+}
+
+func pushServerStatusToDb(session *r.Session, status string) {
+	err := r.DB("test").Table("hawk").Insert(map[string]string{
+		"status":    status,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}).Exec(session)
+	if err != nil {
+		log.Printf("Error writing to DB: %v", err)
+	}
+}
+
+func fetchServerStatusFromDb(session *r.Session) string {
+	var response map[string]interface{}
+	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("timestamp")).Limit(1).Run(session)
+	if err != nil {
+		log.Printf("Error reading DB: %v", err)
+	}
+	resp.One(&response)
+	return response["status"].(string)
 }
 
 func fetchServerStatus(client http.Client, urls []string) string {
