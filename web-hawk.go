@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	// r "gopkg.in/dancannon/gorethink.v2"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +21,13 @@ func main() {
 	urlsPtr := addConf("URLS", "http://localhost:7070/up,http://www.clianz.com/", "Comma seperated URLs list to monitor")
 	corsPtr := addConf("CORS", "*", "CORS URL to configure.")
 	flag.Parse()
+
+	// session, err := r.Connect(r.ConnectOpts{
+	// 	Address:  "localhost:28015",
+	// 	Database: "hawk",
+	// 	Username: "web-hawk",
+	// 	Password: "hawkpassw0rd",
+	// })
 
 	log.Printf("Monitoring URLs: %v", *urlsPtr)
 	urls := strings.Split(*urlsPtr, ",")
@@ -46,18 +54,23 @@ func main() {
 			}(eachURL)
 		}
 
-		fmt.Fprintf(w, "{\"services\":[")
+		statusResp := "{\"services\":["
+		// fmt.Fprintf(w, "{\"services\":[")
 		for i := 0; i < len(urls); i++ {
 			select {
 			case elem := <-queue:
 				if i != 0 {
-					fmt.Fprintf(w, ",")
+					statusResp += ","
+					// fmt.Fprintf(w, ",")
 				}
-				fmt.Fprintf(w, "{\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}", elem.Alive, elem.Time, elem.URL)
+				statusResp += fmt.Sprintf("{\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}", elem.Alive, elem.Time, elem.URL)
+				// fmt.Fprintf(w, "{\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}", elem.Alive, elem.Time, elem.URL)
 			}
 		}
 		close(queue)
-		fmt.Fprintf(w, "]}")
+		// fmt.Fprintf(w, "]}")
+		statusResp += "]}"
+		fmt.Fprintf(w, statusResp)
 	})
 	err := http.ListenAndServe(":"+*portPtr, nil)
 	if err != nil {
