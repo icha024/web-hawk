@@ -44,23 +44,22 @@
                         </div>                
                     </div>
 
-                    <div class="row clearfix">
+                    <div class="row">
                         <div class="col-md-12 column">
                             <div class="list-group">
 
-                                <div class="list-group-item" ng-repeat="eachData in services">
-                                        <span>
-                                            <h4 class="list-group-item-heading" >
+                                <div class="list-group-item clearfix" ng-repeat="eachData in services">
+                                        <span class="pull-left clearfix">
+                                            <h4>
                                                 {{ eachData.name }}
                                             </h4>
-                                            {{ eachData.url }}
+                                            <i>{{ eachData.url }}</i>
                                         </span>
                                         
-                                        <span class="list-group-item-text" ng-if="!eachData.alive">
-                                            <span class="label label-danger">Not Operational</span>
-                                        </span>
-                                        <span class="list-group-item-text" ng-if="eachData.alive">
-                                            <span class="label label-success">Operational</span> <i>{{ eachData.msec }} ms </i>
+                                        <span class="pull-right clearfix">
+                                            <span class="label label-danger" ng-if="!eachData.alive">Not Operational</span>
+                                            <span class="label label-success" ng-if="eachData.alive">Operational</span>
+                                            <br/><i>{{ eachData.msec }} ms </i>
                                         </span>
                                 </div>
 

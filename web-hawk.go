@@ -32,7 +32,7 @@ func main() {
 	dbNamePtr := addConf("DB_NAME", "hawk", "Name of RethinkDB database")
 	dbUsernamePtr := addConf("DB_USERNAME", "web-hawk", "Username of RethinkDB user")
 	dbPasswordPtr := addConf("DB_PASSWORD", "hawkpassw0rd", "Password of RethinkDB user")
-	pollTimePtr := addConf("POLL_TIME", "10", "Time (in seconds) between service status polls. '0' will disable server from polling.")
+	pollTimePtr := addConf("POLL_TIME", "600", "Time (in seconds) between service status polls. '0' will disable server from polling.")
 	urlCleanerPtr := addConf("URL_CLEANERS", "http://, https://, www.", "Part of URL to strip for converting to friendly name.")
 	flag.Parse()
 
