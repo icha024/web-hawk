@@ -46,18 +46,18 @@ func main() {
 			}(eachURL)
 		}
 
-		fmt.Fprintf(w, "{")
+		fmt.Fprintf(w, "{\"services\":[")
 		for i := 0; i < len(urls); i++ {
 			select {
 			case elem := <-queue:
 				if i != 0 {
-					fmt.Fprintf(w, ", ")
+					fmt.Fprintf(w, ",")
 				}
-				fmt.Fprintf(w, "alive:%v, msec:%.2f, url:\"%v\"", elem.Alive, elem.Time, elem.URL)
+				fmt.Fprintf(w, "{\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}", elem.Alive, elem.Time, elem.URL)
 			}
 		}
 		close(queue)
-		fmt.Fprintf(w, "}")
+		fmt.Fprintf(w, "]}")
 	})
 	err := http.ListenAndServe(":"+*portPtr, nil)
 	if err != nil {
