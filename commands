@@ -1,0 +1,2 @@
+docker run --name some-rethink -v "$PWD:/data" -ti -p 8080:8080 -p 28015:28015 rethinkdb
+go build && ./web-hawk -PORT=3001 -CORS=http://localhost:9080

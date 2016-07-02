@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,15 +26,21 @@ func main() {
 	portPtr := addConf("PORT", "8080", "Port to host location service on.")
 	urlsPtr := addConf("URLS", "http://localhost:7070/up,http://www.clianz.com/", "Comma seperated URLs list to monitor")
 	corsPtr := addConf("CORS", "*", "CORS URL to configure.")
+	dbAddressPtr := addConf("DB_ADDDRESS", "localhost:28015", "Address of RethinkDB instance")
+	dbNamePtr := addConf("DB_NAME", "hawk", "Name of RethinkDB database")
+	dbUsernamePtr := addConf("DB_USERNAME", "web-hawk", "Username of RethinkDB user")
+	dbPasswordPtr := addConf("DB_PASSWORD", "hawkpassw0rd", "Password of RethinkDB user")
+	pollTimePtr := addConf("POLL_TIME", "10", "Time (in seconds) between service status polls")
 	flag.Parse()
+
 	cors = corsPtr
 	log.Printf("Setting CORS: %v", *cors)
 
 	session, err := r.Connect(r.ConnectOpts{
-		Address:  "localhost:28015",
-		Database: "hawk",
-		Username: "web-hawk",
-		Password: "hawkpassw0rd",
+		Address:  *dbAddressPtr,
+		Database: *dbNamePtr,
+		Username: *dbUsernamePtr,
+		Password: *dbPasswordPtr,
 	})
 	if err != nil {
 		log.Panic("Error connecting to DB.", err)
@@ -46,9 +53,6 @@ func main() {
 		Timeout: timeout,
 	}
 
-	// latestStatus := fetchServerStatusFromDb(session)
-	// log.Printf("Latest status: %v", latestStatus)
-
 	// Socker server
 	server, err = NewSocketServer(nil)
 	if err != nil {
@@ -57,11 +61,6 @@ func main() {
 	server.On("connection", func(so socketio.Socket) {
 		log.Println("on connection")
 		so.Join("updatesChannel")
-		// so.On("chat message", func(msg string) {
-		// 	log.Println("emit:", so.Emit("chat message", msg))
-		// 	so.BroadcastTo("chat", "chat message", msg)
-		// })
-		// so.BroadcastTo("updatesChannel", "updateEvent", latestStatus)
 		so.On("disconnection", func() {
 			log.Println("on disconnect")
 		})
@@ -71,11 +70,15 @@ func main() {
 	})
 	http.Handle("/socket.io/", server)
 
-	// Poll server to monitor regularly
+	// Poll server to monitor periodically
 	latestStatus := fetchServerStatus(client, urls)
 	broadcastStatus(latestStatus)
 	pushServerStatusToDb(session, latestStatus)
-	ticker := time.NewTicker(10 * time.Second)
+	pollTime, err := strconv.ParseInt(*pollTimePtr, 10, 64)
+	if err != nil {
+		panic("Service poll time invalid. Must be interger")
+	}
+	ticker := time.NewTicker(time.Duration(pollTime) * time.Second)
 	go func() {
 		for t := range ticker.C {
 			fmt.Println("Tick at", t)
@@ -88,8 +91,6 @@ func main() {
 	// Web handler
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", *cors)
-		// statusResp := fetchServerStatus(client, urls)
-		// broadcastStatus(statusResp)
 		statusResp := fetchServerStatusFromDb(session)
 		fmt.Fprintf(w, statusResp)
 	})
