@@ -17,6 +17,10 @@
   background-color: #0099cc;
   border-color: #0099cc;
 }
+.panel-success>.panel-heading {
+    background-color:#14892c;
+    color: white;
+}
 </style>
 <body class="body-bg">
     <div ng-app="myApp" ng-controller="myCtrl">
@@ -29,18 +33,19 @@
 
             <div class="row clearfix">
                 <div class="col-md-12 column">
-                    <div class="panel panel-warning" ng-if="!good">
-                        <div class="panel-heading">
-                        <h3 class="panel-title">
-                            Not All Systems Operational
-                        </h3>
-                        </div>                
-                    </div>
-                    <div class="panel panel-success" ng-if="good">
-                        <div class="panel-heading">
-                        <h3 class="panel-title">
-                            All Systems Operational
-                        </h3>
+                    <div class="panel panel-success">
+                        <div class="panel-heading clearfix">
+                            <span class="pull-left">
+                                <h3 class="panel-title" ng-if="good">
+                                    All Systems Operational
+                                </h3>
+                                <h3 class="panel-title" ng-if="!good">
+                                    Not All Systems Operational
+                                </h3>
+                            </span>
+                            <span class="pull-right">
+                                <p>@ {{ updated }}</p>
+                            </span>
                         </div>                
                     </div>
 
@@ -82,7 +87,8 @@ app.factory('myService', ['$resource', function($resource) {
   }])
 app.controller("myCtrl", function(myService, $scope, $http) {
     $scope.services = []
-    $scope.good = true	
+    $scope.good = true
+    $scope.updated = ""	
     myService.get(function(res) {
         setStatus(res)
     }, function(error) {
@@ -90,6 +96,7 @@ app.controller("myCtrl", function(myService, $scope, $http) {
     });
 
     function setStatus(data){
+        $scope.updated = data.updated
         $scope.services = data.services
         data.services.forEach(function(eachSvc){
             $scope.good = $scope.good & eachSvc.alive

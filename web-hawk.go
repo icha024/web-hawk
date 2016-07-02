@@ -27,7 +27,7 @@ var server *Server
 func main() {
 	portPtr := addConf("PORT", "8080", "Port to host location service on.")
 	urlsPtr := addConf("URLS", "http://localhost:7070/up, http://www.clianz.com/", "Comma seperated URLs list to monitor")
-	corsPtr := addConf("CORS", "*", "CORS URL to configure.")
+	corsPtr := addConf("CORS", "", "CORS URL to configure.")
 	dbAddressPtr := addConf("DB_ADDDRESS", "localhost:28015", "Address of RethinkDB instance")
 	dbNamePtr := addConf("DB_NAME", "hawk", "Name of RethinkDB database")
 	dbUsernamePtr := addConf("DB_USERNAME", "web-hawk", "Username of RethinkDB user")
@@ -74,6 +74,9 @@ func main() {
 	})
 	http.Handle("/socket.io/", server)
 
+	// Subscibe to DB and broadcast changes
+	broadcastDbChanges(session)
+
 	// Poll server to monitor periodically
 	pollTime, err := strconv.ParseInt(*pollTimePtr, 10, 64)
 	if err != nil || (pollTime > 0 && pollTime < 5) {
@@ -85,7 +88,10 @@ func main() {
 
 	// Web handler
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", *cors)
+		if len(*cors) > 0 {
+			w.Header().Set("Access-Control-Allow-Origin", *cors)
+			w.Header().Add("Access-Control-Allow-Credentials", "true")
+		}
 		statusResp := fetchServerStatusFromDb(session)
 		fmt.Fprintf(w, statusResp)
 	})
@@ -111,21 +117,14 @@ func NewSocketServer(transportNames []string) (*Server, error) {
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Access-Control-Allow-Origin", *cors)
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
+	if len(*cors) > 0 {
+		w.Header().Add("Access-Control-Allow-Origin", *cors)
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+	}
 	s.Server.ServeHTTP(w, r)
 }
 
-func monitorServiceStatus(session *r.Session, client http.Client, urls []string, pollTime int64) {
-	pushServerStatusToDb(session, fetchServerStatus(client, urls))
-	ticker := time.NewTicker(time.Duration(pollTime) * time.Second)
-	go func() {
-		for t := range ticker.C {
-			fmt.Println("Tick at", t)
-			pushServerStatusToDb(session, fetchServerStatus(client, urls))
-		}
-	}()
-
+func broadcastDbChanges(session *r.Session) {
 	// Listen to DB for changes
 	res, err := r.DB("test").Table("hawk").Changes().Run(session)
 	if err != nil {
@@ -143,6 +142,17 @@ func monitorServiceStatus(session *r.Session, client http.Client, urls []string,
 			}
 		}
 	}(res)
+}
+
+func monitorServiceStatus(session *r.Session, client http.Client, urls []string, pollTime int64) {
+	pushServerStatusToDb(session, fetchServerStatus(client, urls))
+	ticker := time.NewTicker(time.Duration(pollTime) * time.Second)
+	go func() {
+		for t := range ticker.C {
+			fmt.Println("Tick at", t)
+			pushServerStatusToDb(session, fetchServerStatus(client, urls))
+		}
+	}()
 }
 
 func broadcastStatus(statusResp string) {
@@ -186,7 +196,7 @@ func fetchServerStatus(client http.Client, urls []string) string {
 		}(eachURL)
 	}
 
-	statusResp := "{\"services\":["
+	statusResp := "{\"updated\":\"" + time.Now().Format(time.Kitchen) + "\",\"services\":["
 	for i := 0; i < len(urls); i++ {
 		select {
 		case elem := <-queue:
