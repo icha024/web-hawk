@@ -19,6 +19,7 @@ type serviceStats struct {
 }
 
 var cors *string
+var server *Server
 
 func main() {
 	portPtr := addConf("PORT", "8080", "Port to host location service on.")
@@ -51,18 +52,18 @@ func main() {
 	log.Printf("Latest status: %v", latestStatus)
 
 	// Socker server
-	server, err := NewSocketServer(nil)
+	server, err = NewSocketServer(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 	server.On("connection", func(so socketio.Socket) {
 		log.Println("on connection")
-		so.Join("update")
+		so.Join("updatesChannel")
 		// so.On("chat message", func(msg string) {
 		// 	log.Println("emit:", so.Emit("chat message", msg))
 		// 	so.BroadcastTo("chat", "chat message", msg)
 		// })
-		so.BroadcastTo("update", "update", latestStatus)
+		// so.BroadcastTo("updatesChannel", "updateEvent", latestStatus)
 		so.On("disconnection", func() {
 			log.Println("on disconnect")
 		})
@@ -76,6 +77,7 @@ func main() {
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", *cors)
 		statusResp := fetchServerStatus(client, urls)
+		server.BroadcastTo("updatesChannel", "updateEvent", statusResp)
 		fmt.Fprintf(w, statusResp)
 	})
 	err = http.ListenAndServe(":"+*portPtr, nil)

@@ -99,7 +99,7 @@ app.controller("myCtrl", function(myService, $scope, $http) {
     }
 
     var socket = io('http://localhost:3001/socket.io');
-    socket.on('update', function (data) {
+    socket.on('updateEvent', function (data) {
         console.log(data);
         $scope.$apply(setStatus(JSON.parse(data)))
         // socket.emit('my other event', { my: 'data' });
