@@ -17,7 +17,7 @@ func main() {
 		Time  float64
 	}
 	portPtr := addConf("PORT", "8080", "Port to host location service on.")
-	urlsPtr := addConf("URLS", "http://localhost:8080/up,http://www.clianz.com/", "Comma seperated URLs list to monitor")
+	urlsPtr := addConf("URLS", "http://localhost:7070/up,http://www.clianz.com/", "Comma seperated URLs list to monitor")
 	corsPtr := addConf("CORS", "*", "CORS URL to configure.")
 	flag.Parse()
 

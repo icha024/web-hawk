@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.4/angular.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.4/angular-resource.js"></script>
+<style>
+.body-bg {
+    background-color: lightgrey;
+}
+.title {
+    color: white
+}
+.navbar-default {
+  background-color: #3366ff;
+  border-color: #a4d4c7;
+}
+</style>
+<body class="body-bg">
+    <div ng-app="myApp" ng-controller="myCtrl">
+            <nav class="navbar navbar-static-top navbar-default">
+		        <div class="container-fluid"><h2 class="title"></i>Service Status</h2></div>
+            </nav>
+        <div class="container">
+            <div class="panel panel-default">
+            <div class="panel-body">
+
+            <div class="row clearfix">
+                <div class="col-md-12 column">
+                    <div class="panel panel-warning" ng-if="!good">
+                        <div class="panel-heading">
+                        <h3 class="panel-title">
+                            Not All Systems Operational
+                        </h3>
+                        </div>                
+                    </div>
+                    <div class="panel panel-success" ng-if="good">
+                        <div class="panel-heading">
+                        <h3 class="panel-title">
+                            All Systems Operational
+                        </h3>
+                        </div>                
+                    </div>
+
+                    <div class="row clearfix">
+                        <div class="col-md-12 column">
+                            <div class="list-group">
+
+                                <div class="list-group-item" ng-repeat="eachData in services">
+                                        <span>
+                                            <h4 class="list-group-item-heading" >
+                                            {{ eachData.url }}
+                                            </h4>
+                                        </span>
+                                        
+                                        <span class="list-group-item-text" ng-if="!eachData.alive">
+                                            <span class="label label-danger">Not Operational</span>
+                                        </span>
+                                        <span class="list-group-item-text" ng-if="eachData.alive">
+                                            <span class="label label-success">Operational</span> <i>{{ eachData.msec }} ms </i>
+                                        </span>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+        </div>
+
+        </div>
+    </div>
+    <script>
+var app = angular.module("myApp", ["ngResource"]) 
+app.factory('myService', ['$resource', function($resource) {
+    return $resource("http://localhost:3001/up")
+  }])
+app.controller("myCtrl", function(myService, $scope, $http) {
+    $scope.services = []
+    $scope.good = true	
+    myService.get(function(res) {
+            $scope.services = res.services
+            res.services.forEach(function(eachSvc){
+                $scope.good = $scope.good & eachSvc.alive
+            })
+            // console.debug("RES: "  + JSON.stringify($scope.services))
+        }, function(error) {
+            // Error handler code
+        });  
+})
+</script>
+</body>
+
+</html>
