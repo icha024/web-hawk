@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	// r "gopkg.in/dancannon/gorethink.v2"
+	r "gopkg.in/dancannon/gorethink.v2"
 	"log"
 	"net/http"
 	"os"
@@ -23,12 +23,15 @@ func main() {
 	corsPtr := addConf("CORS", "*", "CORS URL to configure.")
 	flag.Parse()
 
-	// session, err := r.Connect(r.ConnectOpts{
-	// 	Address:  "localhost:28015",
-	// 	Database: "hawk",
-	// 	Username: "web-hawk",
-	// 	Password: "hawkpassw0rd",
-	// })
+	session, err := r.Connect(r.ConnectOpts{
+		Address:  "localhost:28015",
+		Database: "hawk",
+		Username: "web-hawk",
+		Password: "hawkpassw0rd",
+	})
+	if err != nil {
+		log.Panic("Error connecting to DB.", err)
+	}
 
 	log.Printf("Monitoring URLs: %v", *urlsPtr)
 	urls := strings.Split(*urlsPtr, ",")
@@ -37,12 +40,28 @@ func main() {
 		Timeout: timeout,
 	}
 
+	err = r.DB("test").Table("hawk").Insert(map[string]string{
+		"status":    fetchServerStatus(client, urls),
+		"timestamp": time.Now().Format(time.RFC3339),
+	}).Exec(session)
+	if err != nil {
+		log.Printf("Error writing to DB: %v", err)
+	}
+
+	var response interface{}
+	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("timestamp")).Limit(1).Run(session)
+	if err != nil {
+		log.Printf("Error reading DB: %v", err)
+	}
+	resp.One(&response)
+	log.Printf("Latest status: %v", response)
+
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", *corsPtr)
 		statusResp := fetchServerStatus(client, urls)
 		fmt.Fprintf(w, statusResp)
 	})
-	err := http.ListenAndServe(":"+*portPtr, nil)
+	err = http.ListenAndServe(":"+*portPtr, nil)
 	if err != nil {
 		log.Fatalf("Error: %s", err.Error())
 	}
