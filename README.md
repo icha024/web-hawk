@@ -5,7 +5,7 @@ Status monitoring tool inspired by BitBucket's status page
 ![ScreenShot](https://raw.github.com/icha024/web-hawk/master/webHawkScreenshot.png)
 
 
-#### To Run:
+#### To Run
 1. Start a static web server, eg.
 > static-server
 
@@ -15,7 +15,7 @@ Status monitoring tool inspired by BitBucket's status page
 3. Build and run the app, ports and CORS settings are optional.
 > go build && ./web-hawk -PORT=3001 -CORS=http://localhost:9080
 
-#### Options:
+#### Options
 ```bash
 Usage of ./web-hawk:
   -CORS string
@@ -37,3 +37,12 @@ Usage of ./web-hawk:
   -URL_CLEANERS string
     	Part of URL to strip for converting to friendly name. (default "http://, https://, www.")
 ```
+### ToDo
+- Charts for historic data
+- Notifications
+- Cache and compress server response
+- DB clean up for old data
+- Automate initializing new DB
+
+### Licence
+EPL
