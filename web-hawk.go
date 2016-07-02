@@ -46,10 +46,8 @@ func main() {
 		Timeout: timeout,
 	}
 
-	pushServerStatusToDb(session, fetchServerStatus(client, urls))
-
-	latestStatus := fetchServerStatusFromDb(session)
-	log.Printf("Latest status: %v", latestStatus)
+	// latestStatus := fetchServerStatusFromDb(session)
+	// log.Printf("Latest status: %v", latestStatus)
 
 	// Socker server
 	server, err = NewSocketServer(nil)
@@ -73,11 +71,26 @@ func main() {
 	})
 	http.Handle("/socket.io/", server)
 
+	// Poll server to monitor regularly
+	latestStatus := fetchServerStatus(client, urls)
+	broadcastStatus(latestStatus)
+	pushServerStatusToDb(session, latestStatus)
+	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		for t := range ticker.C {
+			fmt.Println("Tick at", t)
+			latestStatus := fetchServerStatus(client, urls)
+			broadcastStatus(latestStatus)
+			pushServerStatusToDb(session, latestStatus)
+		}
+	}()
+
 	// Web handler
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", *cors)
-		statusResp := fetchServerStatus(client, urls)
-		server.BroadcastTo("updatesChannel", "updateEvent", statusResp)
+		// statusResp := fetchServerStatus(client, urls)
+		// broadcastStatus(statusResp)
+		statusResp := fetchServerStatusFromDb(session)
 		fmt.Fprintf(w, statusResp)
 	})
 	err = http.ListenAndServe(":"+*portPtr, nil)
@@ -105,6 +118,10 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", *cors)
 	w.Header().Add("Access-Control-Allow-Credentials", "true")
 	s.Server.ServeHTTP(w, r)
+}
+
+func broadcastStatus(statusResp string) {
+	server.BroadcastTo("updatesChannel", "updateEvent", statusResp)
 }
 
 func pushServerStatusToDb(session *r.Session, status string) {

@@ -84,17 +84,16 @@ app.controller("myCtrl", function(myService, $scope, $http) {
     $scope.services = []
     $scope.good = true	
     myService.get(function(res) {
-        $scope.services = res.services
-        res.services.forEach(function(eachSvc){
-            $scope.good = $scope.good & eachSvc.alive
-        })
-        // console.debug("RES: "  + JSON.stringify($scope.services))
+        setStatus(res)
     }, function(error) {
         // Error handler code
     });
 
     function setStatus(data){
         $scope.services = data.services
+        data.services.forEach(function(eachSvc){
+            $scope.good = $scope.good & eachSvc.alive
+        })
         // console.debug("status updated: " + JSON.stringify(data))
     }
 
