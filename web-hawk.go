@@ -62,7 +62,7 @@ func main() {
 		// 	log.Println("emit:", so.Emit("chat message", msg))
 		// 	so.BroadcastTo("chat", "chat message", msg)
 		// })
-		so.BroadcastTo("update", latestStatus)
+		so.BroadcastTo("update", "update", latestStatus)
 		so.On("disconnection", func() {
 			log.Println("on disconnect")
 		})

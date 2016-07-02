@@ -92,9 +92,16 @@ app.controller("myCtrl", function(myService, $scope, $http) {
     }, function(error) {
         // Error handler code
     });
+
+    function setStatus(data){
+        $scope.services = data.services
+        // console.debug("status updated: " + JSON.stringify(data))
+    }
+
     var socket = io('http://localhost:3001/socket.io');
     socket.on('update', function (data) {
         console.log(data);
+        $scope.$apply(setStatus(JSON.parse(data)))
         // socket.emit('my other event', { my: 'data' });
     });
 })
