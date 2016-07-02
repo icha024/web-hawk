@@ -63,11 +63,11 @@ func main() {
 		log.Fatal(err)
 	}
 	server.On("connection", func(so socketio.Socket) {
-		log.Println("on connection")
+		// log.Println("on connection")
 		so.Join("updatesChannel")
-		so.On("disconnection", func() {
-			log.Println("on disconnect")
-		})
+		// so.On("disconnection", func() {
+		// 	log.Println("on disconnect")
+		// })
 	})
 	server.On("error", func(so socketio.Socket, err error) {
 		log.Println("error:", err)
