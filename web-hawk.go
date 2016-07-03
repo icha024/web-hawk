@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
 	"github.com/googollee/go-socket.io"
 	r "gopkg.in/dancannon/gorethink.v2"
 	"log"
@@ -26,6 +28,15 @@ type ServiceStats struct {
 	Msec  float64 `json:"Msec"`
 }
 
+type AllNews struct {
+	News []News `json:"News"`
+}
+
+type News struct {
+	Timestamp string `json:"Timestamp"`
+	Content   string `json:"Content"`
+}
+
 var cors *string
 var urlCleaner []string
 
@@ -39,11 +50,14 @@ func main() {
 	dbPasswordPtr := addConf("DB_PASSWORD", "hawkpassw0rd", "Password of RethinkDB user")
 	pollTimePtr := addConf("POLL_TIME", "300", "Time (in seconds) between service status polls. '0' will disable server from polling.")
 	urlCleanerPtr := addConf("URL_CLEANERS", "http://, https://, www.", "Part of URL to strip for converting to friendly name.")
+	twitterPtr := addConf("TWITTER", "", "Comma separated list of Twitter params (consumerKey,consumerSecret,accessToken,accessSecret,username)")
 	flag.Parse()
 
 	cors = corsPtr
 	log.Printf("Setting CORS: %v", *cors)
 	urlCleaner = strings.Split(strings.Replace(*urlCleanerPtr, " ", "", -1), ",")
+	twitterConf := strings.Split(*twitterPtr, ",")
+	var twitterClient *twitter.Client
 
 	dbSession, err := r.Connect(r.ConnectOpts{
 		Address:  *dbAddressPtr,
@@ -60,6 +74,14 @@ func main() {
 	timeout := time.Duration(1 * time.Second)
 	client := http.Client{
 		Timeout: timeout,
+	}
+
+	// Twitter client
+	if len(twitterConf) > 0 {
+		config := oauth1.NewConfig(twitterConf[0], twitterConf[1])
+		token := oauth1.NewToken(twitterConf[2], twitterConf[3])
+		httpClient := config.Client(oauth1.NoContext, token)
+		twitterClient = twitter.NewClient(httpClient)
 	}
 
 	// Socker server
@@ -103,6 +125,25 @@ func main() {
 		statusResp := fetchServerStatusHistoryFromDb(dbSession, pollTime)
 		enc := json.NewEncoder(w)
 		enc.Encode(statusResp)
+	})
+	http.HandleFunc("/news", func(w http.ResponseWriter, r *http.Request) {
+		addCors(w)
+		if twitterClient != nil {
+			params := &twitter.UserTimelineParams{ScreenName: twitterConf[4]}
+			tweets, _, err := twitterClient.Timelines.UserTimeline(params)
+			if err != nil {
+				log.Fatal(err)
+			}
+			allNews := AllNews{}
+			for _, tweet := range tweets {
+				log.Printf("TWEET ==> %v: %v", tweet.CreatedAt, tweet.Text)
+				allNews.News = append(allNews.News, News{Timestamp: tweet.CreatedAt, Content: tweet.Text})
+			}
+			enc := json.NewEncoder(w)
+			enc.Encode(allNews)
+		} else {
+			fmt.Fprintf(w, "No News")
+		}
 	})
 
 	err = http.ListenAndServe(":"+*portPtr, nil)
