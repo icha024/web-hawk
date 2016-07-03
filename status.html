@@ -14,36 +14,43 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/angular-chart.js/0.10.2/angular-chart.min.css">
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular-chart.js/0.10.2/angular-chart.min.js"></script>
 <style>
-.body-bg {
-    background-color: #f2f2f2;
-    font-family: 'sans-serif'
-}
-.title {
-    color: white
-}
-.navbar-default {
-  background-color: #205081;
-  border-color: #205081;
-}
-.panel-success>.panel-heading {
-    background-color:#14892c;
-    color: white;
-}
+    .body-bg {
+        background-color: #f2f2f2;
+        font-family: 'sans-serif'
+    }
+    
+    .title {
+        color: white
+    }
+    
+    .navbar-default {
+        background-color: #205081;
+        border-color: #205081;
+    }
+    
+    .panel-success>.panel-heading {
+        background-color: #14892c;
+        color: white;
+    }
 </style>
+
 <body class="body-bg">
     <div ng-app="myApp" ng-controller="myCtrl">
-            <nav class="navbar navbar-static-top navbar-default">
-		        <div class="container-fluid"><h2 class="title"></i>Web Hawk</h2></div>
-            </nav>
+        <nav class="navbar navbar-static-top navbar-default">
+            <div class="container-fluid">
+                <h2 class="title">
+                    </i>Web Hawk</h2>
+            </div>
+        </nav>
         <div class="container">
             <div class="panel panel-default">
-            <div class="panel-body">
+                <div class="panel-body">
 
-            <div class="row clearfix">
-                <div class="col-md-12 column">
-                    <div class="panel panel-success">
-                        <div class="panel-heading clearfix">
-                            <span class="pull-left">
+                    <div class="row clearfix">
+                        <div class="col-md-12 column">
+                            <div class="panel panel-success">
+                                <div class="panel-heading clearfix">
+                                    <span class="pull-left">
                                 <h3 class="panel-title" ng-if="good">
                                     All Systems Operational
                                 </h3>
@@ -51,58 +58,59 @@
                                     Not All Systems Operational
                                 </h3>
                             </span>
-                            <span class="pull-right">
+                                    <span class="pull-right">
                                 <p>@ {{ updated }}</p>
                             </span>
-                        </div>                
-                    </div>
+                                </div>
+                            </div>
 
-                    <div class="row">
-                        <div class="col-md-12 column">
-                            <div class="list-group">
+                            <div class="row">
+                                <div class="col-md-12 column">
+                                    <div class="list-group">
 
-                                <div class="list-group-item clearfix" ng-repeat="eachData in services">
-                                        <span class="pull-left clearfix">
+                                        <div class="list-group-item clearfix" ng-repeat="eachData in services">
+                                            <span class="pull-left clearfix">
                                             <h4>
                                                 {{ eachData.Name }}
                                             </h4>
-                                            <h6><i>{{ eachData.Url }}</i></h6>
+                                            <h6><i>{{ eachData.URL }}</i></h6>
                                         </span>
-                                        
-                                        <span class="pull-right clearfix">
+
+                                            <span class="pull-right clearfix">
                                             <span class="label label-danger" ng-if="!eachData.Alive">Not Operational</span>
                                             <span class="label label-success" ng-if="eachData.Alive">Operational</span>
                                             <br/><i>{{ eachData.Msec.toFixed(2) }} ms </i>
-                                        </span>
-                                </div>
+                                            </span>
+                                        </div>
 
+                                    </div>
+                                </div>
                             </div>
+
                         </div>
                     </div>
 
+                    <canvas id="line" class="chart chart-line" chart-data="data" chart-labels="labels" chart-series="series" chart-options="options"
+                        chart-dataset-override="datasetOverride" chart-click="onClick" </canvas>
+
                 </div>
             </div>
-
-            <canvas id="line" class="chart chart-line" chart-data="data"
-                chart-labels="labels" chart-series="series" chart-options="options"
-                chart-dataset-override="datasetOverride" chart-click="onClick"
-            </canvas> 
-
-        </div>
-        </div>
 
         </div>
     </div>
     <script>
 var app = angular.module("myApp", ["ngResource", "chart.js"]) 
-app.factory('myService', ['$resource', function($resource) {
+app.factory('statusService', ['$resource', function($resource) {
     return $resource("http://localhost:3001/up")
   }])
-app.controller("myCtrl", function(myService, $scope, $http) {
+app.factory('historyService', ['$resource', function($resource) {
+    return $resource("http://localhost:3001/history")
+  }])
+app.controller("myCtrl", function(statusService, historyService, $scope, $http) {
     $scope.services = []
     $scope.good = true
     $scope.updated = ""	
-    myService.get(function(res) {
+    statusService.get(function(res) {
         setStatus(res)
     }, function(error) {
         // Error handler code
@@ -117,11 +125,83 @@ app.controller("myCtrl", function(myService, $scope, $http) {
         // console.debug("status updated: " + JSON.stringify(data))
     }
 
+    // Socket updates
     var socket = io('http://localhost:3001/socket.io');
     socket.on('updateEvent', function (data) {
         console.log(data);
         $scope.$apply(setStatus(JSON.parse(data)))
         // socket.emit('my other event', { my: 'data' });
+    });
+
+    // Charts
+    // $scope.labels = ["January", "February", "March", "April", "May", "June", "July"];
+    $scope.labels = [];
+    $scope.series = [];
+    $scope.data = [];
+    $scope.onClick = function (points, evt) {
+        console.log(points, evt);
+    };
+    $scope.datasetOverride = [{ yAxisID: 'y-axis-1' }, { yAxisID: 'y-axis-2' }];
+    $scope.options = {
+        scales: {
+        yAxes: [
+            {
+            id: 'y-axis-1',
+            type: 'linear',
+            display: true,
+            position: 'left'
+            },
+            {
+            id: 'y-axis-2',
+            type: 'linear',
+            display: true,
+            position: 'right'
+            }
+        ]
+        }
+    };
+
+    var setProps = false
+    function pushSvcData(svcArr){
+        for (var i in svcArr){
+            if (!setProps) {
+                $scope.series.push(svcArr[i].Name)
+                $scope.data.push([svcArr[i].Msec])
+            } else {
+                var nameIdx = $scope.series.indexOf(svcArr[i].Name)
+                if (nameIdx != -1) {
+                    $scope.data[nameIdx].push(svcArr[i].Msec)
+                }
+            }
+        }
+        if (!setProps) {
+            setProps = true
+        }
+    }
+
+    historyService.query(function(res) {
+        sortedData = res.sort(function(item1, item2){
+            return item1.Timestamp.localeCompare(item2.Timestamp);
+        })
+        // console.debug("HISTORY ===> " + JSON.stringify(sortedData))
+        for (var i in sortedData){
+            var eachStatus = sortedData[i]
+            if (eachStatus.Timestamp != undefined && eachStatus.Timestamp.length > 19) {
+                $scope.labels.push(eachStatus.Timestamp.substring(11,19))
+                pushSvcData(eachStatus.Services)
+
+                // for (var j in eachTime.Services){
+                //     var svc = eachTime.Services[i]
+                //     if (!setProps) {
+                //         $scope.series
+                //         setProps = true
+                //     }
+                // }
+            }
+        }
+
+    }, function(error) {
+        // Error handler code
     });
 
 })

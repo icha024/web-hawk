@@ -22,7 +22,7 @@ type Status struct {
 type ServiceStats struct {
 	Name  string  `json:"Name"`
 	Alive bool    `json:"Alive"`
-	URL   string  `json:"Url"`
+	URL   string  `json:"URL"`
 	Msec  float64 `json:"Msec"`
 }
 
