@@ -1,4 +1,5 @@
 # web-hawk
+[![Build Status](https://travis-ci.org/icha024/web-hawk.svg?branch=master)](https://travis-ci.org/icha024/web-hawk)
 
 Status monitoring tool inspired by BitBucket's status page
 
