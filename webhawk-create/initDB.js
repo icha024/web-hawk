@@ -20,7 +20,7 @@ r.connect({ host: 'localhost', port: 28015 }, function (err, conn) {
                     console.log(res);
                     console.log("Successfully created new table 'hawk' with user 'web-hawk'")
                     console.log("Admin password updated.")
-                    process.exit(1)
+                    process.exit(0)
                 });
             });
         });
