@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/googollee/go-socket.io"
@@ -13,11 +14,16 @@ import (
 	"time"
 )
 
-type serviceStats struct {
-	Name  string
-	Alive bool
-	URL   string
-	Time  float64
+type Status struct {
+	Timestamp string         `json:"Timestamp"`
+	Services  []ServiceStats `json:"Services"`
+}
+
+type ServiceStats struct {
+	Name  string  `json:"Name"`
+	Alive bool    `json:"Alive"`
+	URL   string  `json:"Url"`
+	Msec  float64 `json:"Msec"`
 }
 
 var cors *string
@@ -31,7 +37,7 @@ func main() {
 	dbNamePtr := addConf("DB_NAME", "hawk", "Name of RethinkDB database")
 	dbUsernamePtr := addConf("DB_USERNAME", "web-hawk", "Username of RethinkDB user")
 	dbPasswordPtr := addConf("DB_PASSWORD", "hawkpassw0rd", "Password of RethinkDB user")
-	pollTimePtr := addConf("POLL_TIME", "600", "Time (in seconds) between service status polls. '0' will disable server from polling.")
+	pollTimePtr := addConf("POLL_TIME", "300", "Time (in seconds) between service status polls. '0' will disable server from polling.")
 	urlCleanerPtr := addConf("URL_CLEANERS", "http://, https://, www.", "Part of URL to strip for converting to friendly name.")
 	flag.Parse()
 
@@ -92,7 +98,11 @@ func main() {
 			w.Header().Add("Access-Control-Allow-Credentials", "true")
 		}
 		statusResp := fetchServerStatusFromDb(dbSession)
-		fmt.Fprintf(w, statusResp)
+		// status, _ := json.Marshal(statusResp)
+		enc := json.NewEncoder(w)
+		enc.Encode(statusResp)
+
+		// fmt.Fprintf(w, statusResp)
 	})
 	err = http.ListenAndServe(":"+*portPtr, nil)
 	if err != nil {
@@ -132,12 +142,13 @@ func broadcastDbChanges(server *Server, dbSession *r.Session) {
 	go func(res *r.Cursor) {
 		var value map[string]map[string]interface{}
 		for res.Next(&value) {
-			newStatus := value["new_val"]["status"]
-			log.Printf("DB CHANGE: %v", newStatus)
+			newStatus := value["new_val"]
+			// log.Printf("DB CHANGE: %v", newStatus)
 			if newStatus != nil {
-				if statusStr, ok := newStatus.(string); ok {
-					broadcastStatus(server, statusStr)
-				}
+				statusByte, _ := json.Marshal(newStatus)
+				statusStr := string(statusByte)
+				// log.Printf("Broadcasting: %v", statusStr)
+				broadcastStatus(server, statusStr)
 			}
 		}
 	}(res)
@@ -158,56 +169,55 @@ func broadcastStatus(server *Server, statusResp string) {
 	server.BroadcastTo("updatesChannel", "updateEvent", statusResp)
 }
 
-func pushServerStatusToDb(session *r.Session, status string) {
-	err := r.DB("test").Table("hawk").Insert(map[string]string{
-		"status":    status,
-		"timestamp": time.Now().Format(time.RFC3339),
-	}).Exec(session)
+func pushServerStatusToDb(session *r.Session, status Status) {
+	// log.Printf("Inserting: %v", status)
+	err := r.DB("test").Table("hawk").Insert(status).Exec(session)
 	if err != nil {
 		log.Printf("Error writing to DB: %v", err)
 	}
 }
 
-func fetchServerStatusFromDb(session *r.Session) string {
-	var response map[string]interface{}
-	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("timestamp")).Limit(1).Run(session)
+func fetchServerStatusFromDb(session *r.Session) Status {
+	var response Status
+	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("Timestamp")).Limit(1).Run(session)
 	if err != nil {
 		log.Printf("Error reading DB: %v", err)
 	}
 	resp.One(&response)
-	return response["status"].(string)
+	return response
 }
 
-func fetchServerStatus(client http.Client, urls []string) string {
-	queue := make(chan serviceStats, len(urls))
+func fetchServerStatus(client http.Client, urls []string) Status {
+	queue := make(chan ServiceStats, len(urls))
 	for _, eachURL := range urls {
 		go func(v string) {
 			startTime := time.Now()
 			resp, err := client.Head(v)
 			if err != nil || resp.StatusCode != 200 {
 				log.Printf("Error: %v", v)
-				queue <- serviceStats{Name: getNameFromURL(v), Alive: false, URL: v, Time: 0}
+				queue <- ServiceStats{Name: getNameFromURL(v), Alive: false, URL: v, Msec: 0}
 			} else {
 				endTime := time.Since(startTime).Seconds() * 1000
 				log.Printf("Success (%.2f ms): %v", endTime, v)
-				queue <- serviceStats{Name: getNameFromURL(v), Alive: true, URL: v, Time: endTime}
+				queue <- ServiceStats{Name: getNameFromURL(v), Alive: true, URL: v, Msec: endTime}
 			}
 		}(eachURL)
 	}
-
-	statusResp := "{\"updated\":\"" + time.Now().Format(time.Kitchen) + "\",\"services\":["
+	statusResp := Status{Timestamp: time.Now().Format(time.RFC3339)}
 	for i := 0; i < len(urls); i++ {
 		select {
 		case elem := <-queue:
-			if i != 0 {
-				statusResp += ","
-			}
-			statusResp += fmt.Sprintf("{\"name\":\"%v\",\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}",
-				elem.Name, elem.Alive, elem.Time, elem.URL)
+			// if i != 0 {
+			// 	statusResp += ","
+			// }
+			// statusResp += fmt.Sprintf("{\"name\":\"%v\",\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}",
+			// 	elem.Name, elem.Alive, elem.Time, elem.URL)
+			statusResp.Services = append(statusResp.Services,
+				ServiceStats{Name: elem.Name, Alive: elem.Alive, Msec: elem.Msec, URL: elem.URL})
 		}
 	}
 	close(queue)
-	statusResp += "]}"
+	// statusResp += "]}"
 	return statusResp
 }
 

@@ -56,15 +56,15 @@
                                 <div class="list-group-item clearfix" ng-repeat="eachData in services">
                                         <span class="pull-left clearfix">
                                             <h4>
-                                                {{ eachData.name }}
+                                                {{ eachData.Name }}
                                             </h4>
-                                            <h6><i>{{ eachData.url }}</i></h6>
+                                            <h6><i>{{ eachData.Url }}</i></h6>
                                         </span>
                                         
                                         <span class="pull-right clearfix">
-                                            <span class="label label-danger" ng-if="!eachData.alive">Not Operational</span>
-                                            <span class="label label-success" ng-if="eachData.alive">Operational</span>
-                                            <br/><i>{{ eachData.msec }} ms </i>
+                                            <span class="label label-danger" ng-if="!eachData.Alive">Not Operational</span>
+                                            <span class="label label-success" ng-if="eachData.Alive">Operational</span>
+                                            <br/><i>{{ eachData.Msec.toFixed(2) }} ms </i>
                                         </span>
                                 </div>
 
@@ -96,10 +96,10 @@ app.controller("myCtrl", function(myService, $scope, $http) {
     });
 
     function setStatus(data){
-        $scope.updated = data.updated
-        $scope.services = data.services
-        data.services.forEach(function(eachSvc){
-            $scope.good = $scope.good & eachSvc.alive
+        $scope.updated = data.Timestamp
+        $scope.services = data.Services
+        data.Services.forEach(function(eachSvc){
+            $scope.good = $scope.good & eachSvc.Alive
         })
         // console.debug("status updated: " + JSON.stringify(data))
     }
