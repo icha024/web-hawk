@@ -38,11 +38,12 @@ Usage of ./web-hawk:
     	Part of URL to strip for converting to friendly name. (default "http://, https://, www.")
 ```
 ### ToDo
-- Charts for historic data
-- Notifications
-- Cache and compress server response
-- DB clean up for old data
-- Automate initializing new DB
+- [X] Charts for historic data
+- [X] Twitter news integration
+- [ ] Notifications
+- [ ] Cache and compress server response
+- [ ] DB clean up for old data
+- [ ] Automate initializing new DB
 
 ### Licence
 EPL
