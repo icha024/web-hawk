@@ -32,7 +32,7 @@ Usage of ./web-hawk:
   -POLL_TIME string
     	Time (in seconds) between service status polls. '0' will disable server from polling. (default "300")
   -PORT string
-    	Port to host location service on. (default "8080")
+    	Port to host service on. (default "8080")
   -TWITTER string
     	Comma separated list of Twitter params (consumerKey,consumerSecret,accessToken,accessSecret,username)
   -URLS string
