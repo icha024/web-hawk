@@ -29,9 +29,11 @@ Usage of ./web-hawk:
   -DB_USERNAME string
     	Username of RethinkDB user (default "web-hawk")
   -POLL_TIME string
-    	Time (in seconds) between service status polls. '0' will disable server from polling. (default "600")
+    	Time (in seconds) between service status polls. '0' will disable server from polling. (default "300")
   -PORT string
     	Port to host location service on. (default "8080")
+  -TWITTER string
+    	Comma separated list of Twitter params (consumerKey,consumerSecret,accessToken,accessSecret,username)
   -URLS string
     	Comma seperated URLs list to monitor (default "http://localhost:7070/up, http://www.clianz.com/")
   -URL_CLEANERS string
