@@ -93,17 +93,18 @@ func main() {
 
 	// Web handler
 	http.HandleFunc("/up", func(w http.ResponseWriter, r *http.Request) {
-		if len(*cors) > 0 {
-			w.Header().Set("Access-Control-Allow-Origin", *cors)
-			w.Header().Add("Access-Control-Allow-Credentials", "true")
-		}
+		addCors(w)
 		statusResp := fetchServerStatusFromDb(dbSession)
-		// status, _ := json.Marshal(statusResp)
 		enc := json.NewEncoder(w)
 		enc.Encode(statusResp)
-
-		// fmt.Fprintf(w, statusResp)
 	})
+	http.HandleFunc("/history", func(w http.ResponseWriter, r *http.Request) {
+		addCors(w)
+		statusResp := fetchServerStatusHistoryFromDb(dbSession, pollTime)
+		enc := json.NewEncoder(w)
+		enc.Encode(statusResp)
+	})
+
 	err = http.ListenAndServe(":"+*portPtr, nil)
 	if err != nil {
 		log.Fatalf("Error: %s", err.Error())
@@ -126,10 +127,7 @@ func NewSocketServer(transportNames []string) (*Server, error) {
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if len(*cors) > 0 {
-		w.Header().Add("Access-Control-Allow-Origin", *cors)
-		w.Header().Add("Access-Control-Allow-Credentials", "true")
-	}
+	addCors(w)
 	s.Server.ServeHTTP(w, r)
 }
 
@@ -187,6 +185,17 @@ func fetchServerStatusFromDb(session *r.Session) Status {
 	return response
 }
 
+func fetchServerStatusHistoryFromDb(session *r.Session, pollTime int64) []Status {
+	limit := (24 * 60 * 60) / pollTime
+	var response []Status
+	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("Timestamp")).Limit(limit).Run(session)
+	if err != nil {
+		log.Printf("Error reading DB: %v", err)
+	}
+	resp.All(&response)
+	return response
+}
+
 func fetchServerStatus(client http.Client, urls []string) Status {
 	queue := make(chan ServiceStats, len(urls))
 	for _, eachURL := range urls {
@@ -207,17 +216,11 @@ func fetchServerStatus(client http.Client, urls []string) Status {
 	for i := 0; i < len(urls); i++ {
 		select {
 		case elem := <-queue:
-			// if i != 0 {
-			// 	statusResp += ","
-			// }
-			// statusResp += fmt.Sprintf("{\"name\":\"%v\",\"alive\":%v,\"msec\":%.2f,\"url\":\"%v\"}",
-			// 	elem.Name, elem.Alive, elem.Time, elem.URL)
 			statusResp.Services = append(statusResp.Services,
 				ServiceStats{Name: elem.Name, Alive: elem.Alive, Msec: elem.Msec, URL: elem.URL})
 		}
 	}
 	close(queue)
-	// statusResp += "]}"
 	return statusResp
 }
 
@@ -234,4 +237,11 @@ func addConf(name, defaultVal, desc string) *string {
 		*optPtr = os.Getenv(name)
 	}
 	return optPtr
+}
+
+func addCors(w http.ResponseWriter) {
+	if len(*cors) > 0 {
+		w.Header().Set("Access-Control-Allow-Origin", *cors)
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+	}
 }

@@ -5,6 +5,14 @@
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.4/angular.min.js"></script>
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.4/angular-resource.js"></script>
 <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+
+<!--<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.0.2/Chart.min.js"></script>-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.1.1/Chart.js"></script>
+
+<!--<link href="http://cdn.jsdelivr.net/angular.chartjs/latest/angular-chart.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="http://cdn.jsdelivr.net/angular.chartjs/latest/angular-chart.min.js"></script>-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/angular-chart.js/0.10.2/angular-chart.min.css">
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular-chart.js/0.10.2/angular-chart.min.js"></script>
 <style>
 .body-bg {
     background-color: #f2f2f2;
@@ -75,13 +83,18 @@
                 </div>
             </div>
 
+            <canvas id="line" class="chart chart-line" chart-data="data"
+                chart-labels="labels" chart-series="series" chart-options="options"
+                chart-dataset-override="datasetOverride" chart-click="onClick"
+            </canvas> 
+
         </div>
         </div>
 
         </div>
     </div>
     <script>
-var app = angular.module("myApp", ["ngResource"]) 
+var app = angular.module("myApp", ["ngResource", "chart.js"]) 
 app.factory('myService', ['$resource', function($resource) {
     return $resource("http://localhost:3001/up")
   }])
@@ -110,6 +123,7 @@ app.controller("myCtrl", function(myService, $scope, $http) {
         $scope.$apply(setStatus(JSON.parse(data)))
         // socket.emit('my other event', { my: 'data' });
     });
+
 })
 </script>
 </body>
