@@ -46,7 +46,7 @@ Usage of ./web-hawk:
 - [ ] Notifications
 - [ ] Cache and compress server response
 - [ ] DB clean up for old data
-- [ ] Automate initializing new DB
+- [X] Script to automate DB initialization
 
 ### Licence
 EPL

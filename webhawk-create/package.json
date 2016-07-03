@@ -1,0 +1,14 @@
+{
+  "name": "webhawk-create",
+  "version": "1.0.0",
+  "description": "",
+  "main": "initDB.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "rethinkdb": "^2.3.2"
+  }
+}
