@@ -122,19 +122,33 @@ app.controller("myCtrl", function(statusService, historyService, $scope, $http) 
     // Socket updates
     var socket = io('http://localhost:3001/socket.io');
     socket.on('updateEvent', function (data) {
-        console.log(data);
+        // console.debug(data);
         $scope.$apply(setStatus(JSON.parse(data)))
-        
+        $scope.$apply(pushSvcData(JSON.parse(data)))
         // socket.emit('my other event', { my: 'data' });
     });
 
     // Charts
-    $scope.labels = [];
-    $scope.series = [];
-    $scope.data = [];
+    $scope.labels = []; // X axis labels
+    $scope.series = []; // Each line description
+    $scope.data = []; // An array of array (one for each series)
 
     var setProps = false
-    function pushSvcData(svcArr){
+    function pushSvcData(data){
+        // Early terminate
+        if (data.Timestamp == undefined || data.Timestamp.length < 16) {
+            return
+        }
+
+        // Pop anything over most recent limit
+        if ($scope.labels.length > 48) {
+            $scope.labels.shift()
+            $scope.data.forEach(function(eachDataSet){eachDataSet.shift()})
+        }
+
+        // Really push data
+        $scope.labels.push(data.Timestamp.substring(11,16))
+        svcArr = data.Services
         for (var i in svcArr){
             if (!setProps) {
                 $scope.series.push(svcArr[i].Name)
@@ -155,15 +169,8 @@ app.controller("myCtrl", function(statusService, historyService, $scope, $http) 
         sortedData = res.sort(function(item1, item2){
             return item1.Timestamp.localeCompare(item2.Timestamp);
         })
+        sortedData.forEach(function(data){pushSvcData(data)})
         // console.debug("HISTORY ===> " + JSON.stringify(sortedData))
-        for (var i in sortedData){
-            var eachStatus = sortedData[i]
-            if (eachStatus.Timestamp != undefined && eachStatus.Timestamp.length > 16) {
-                $scope.labels.push(eachStatus.Timestamp.substring(11,16))
-                pushSvcData(eachStatus.Services)
-            }
-        }
-
     }, function(error) {
         // Error handler code
     });

@@ -186,7 +186,8 @@ func fetchServerStatusFromDb(session *r.Session) Status {
 }
 
 func fetchServerStatusHistoryFromDb(session *r.Session, pollTime int64) []Status {
-	limit := (24 * 60 * 60) / pollTime
+	// limit := (24 * 60 * 60) / pollTime // One day worth of polls
+	limit := 48 // Match this with webpage for best perf
 	var response []Status
 	resp, err := r.DB("test").Table("hawk").OrderBy(r.Desc("Timestamp")).Limit(limit).Run(session)
 	if err != nil {
