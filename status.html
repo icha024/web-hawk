@@ -65,16 +65,16 @@
 
                                         <div class="list-group-item clearfix" ng-repeat="eachData in services">
                                             <span class="pull-left clearfix">
-                                            <h4>
-                                                {{ eachData.Name }}
-                                            </h4>
-                                            <h6><i>{{ eachData.URL }}</i></h6>
-                                        </span>
+                                                <h4>
+                                                    {{ eachData.Name }}
+                                                </h4>
+                                                <h6><i>{{ eachData.URL }}</i></h6>
+                                            </span>
 
                                             <span class="pull-right clearfix">
-                                            <span class="label label-danger" ng-if="!eachData.Alive">Not Operational</span>
-                                            <span class="label label-success" ng-if="eachData.Alive">Operational</span>
-                                            <br/><i>{{ eachData.Msec.toFixed(2) }} ms </i>
+                                                <span class="label label-danger" ng-if="!eachData.Alive">Not Operational</span>
+                                                <span class="label label-success" ng-if="eachData.Alive">Operational</span>
+                                                <br/><i>{{ eachData.Msec.toFixed(2) }} ms </i>
                                             </span>
                                         </div>
 
@@ -84,9 +84,27 @@
 
                         </div>
                     </div>
-
-                    <canvas id="line" class="chart chart-line" chart-data="data" chart-labels="labels" chart-series="series" </canvas>
-
+                    <div class="clearfix">
+                        <canvas id="line" class="chart chart-line" chart-data="data" chart-labels="labels" chart-series="series" </canvas>
+                    </div>
+                    
+                    <div class="row clearfix" ng-if="news.length > 0">
+                        <div class="col-md-12 column">
+                            <H3>Recent Events</H3>
+                            <div class="list-group">
+                                <div class="list-group-item clearfix" ng-repeat="eachNews in news">
+                                    <span class="pull-left clearfix">
+                                        <h4>
+                                        {{ eachNews.Timestamp.substring(0, 16) }}
+                                        </h4>
+                                    </span>
+                                    <span class="pull-right clearfix">
+                                        {{ eachNews.Content }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -100,10 +118,15 @@ app.factory('statusService', ['$resource', function($resource) {
 app.factory('historyService', ['$resource', function($resource) {
     return $resource("http://localhost:3001/history")
   }])
-app.controller("myCtrl", function(statusService, historyService, $scope, $http) {
+app.factory('newsService', ['$resource', function($resource) {
+    return $resource("http://localhost:3001/news")
+}])
+app.controller("myCtrl", function(statusService, historyService, newsService, $scope, $http) {
     $scope.services = []
     $scope.good = true
-    $scope.updated = ""	
+    $scope.updated = ""
+    $scope.news = []
+
     statusService.get(function(res) {
         setStatus(res)
     }, function(error) {
@@ -171,6 +194,17 @@ app.controller("myCtrl", function(statusService, historyService, $scope, $http) 
         })
         sortedData.forEach(function(data){pushSvcData(data)})
         // console.debug("HISTORY ===> " + JSON.stringify(sortedData))
+    }, function(error) {
+        // Error handler code
+    });
+
+    // News
+    function setNews(data){
+        $scope.news = data.News
+        console.debug("News updated: " + JSON.stringify(data.News))
+    }
+    newsService.get(function(res) {
+        setNews(res)
     }, function(error) {
         // Error handler code
     });
